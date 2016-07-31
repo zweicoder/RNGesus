@@ -1,7 +1,7 @@
 # RNGESUS
 RNGesus is aimed to be a secure, trustless, distributed Random Number Generation, following Vitalik's RanDAOplusplus with small tweaks.
 
-### Similar Works
+### Similar Work
 #### RanDAO
 RanDAO works via a commitment scheme where participants submit hashes and reveal their secret later on to calculate a random number. The main problem with this scheme is that the resulting random number can be calculated in a straightforward manner, allowing an attacker to manipulate the result through participating with many nodes and then determining which combination of reveals allow the best outcome. 
 
