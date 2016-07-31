@@ -1,5 +1,5 @@
 # RNGESUS
-RNGesus is aimed to be a secure, trustless, distributed Random Number Generation, following Vitalik's RanDAOplusplus with small tweaks.
+RNGesus is aimed to be a secure, trustless, distributed Random Number Generation, following Vitalik's proposed [RanDAO++](https://www.reddit.com/r/ethereum/comments/4mdkku/could_ethereum_do_this_better_tor_project_is/d3v6djb)  with small tweaks.
 
 ### Similar Work
 #### RanDAO
@@ -10,7 +10,7 @@ RanDAO mitigates this problem by charging a security deposit for nodes that do n
 Reward for Attacker must be less than cost incurred: `(1 - ( (n-1)/n )**(2**m)) * 1e6 < Cm` where C is cost of ticket + security deposit. An expert will have to confirm the calculations and find the exact point where marginal gains = marginal cost, but to simplify things for this lottery, we assume 1 million people (greater = lower deposit) each paying 1 dollar to enter and calculate the security deposit, input `(1-( (1e6-1)/1e6 )^(2^m))  * 1e6 < m C` into WolframAlpha and vary m to find C: m=2, C >= 4; m=7, C >= 19; m=10, C >=  102 etcetc
 
 
-#### RanDAOplusplus
+#### RanDAO++
 Proposed by Vitalik [here](https://www.reddit.com/r/ethereum/comments/4mdkku/could_ethereum_do_this_better_tor_project_is/d3v6djb), it goes down to 2 principles: 
 1. It should not be possible for a participant to calculate fast enough the end result, which prevents the participant from knowing beforehand the effect of his/her action 
 2. The end result should be tamper proof, meaning that everything submitted will be used no matter what, even if someone does not reveal the hash result of sha3^10000000 it can be calculated.
