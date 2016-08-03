@@ -19,31 +19,18 @@ The only downside would be the costly calculation and countless verifications sc
 
 
 ## Implementation
-RNGesus mainly follows the implementation of RanDAOplusplus for now, with some changes:
+RNGesus follows the implementation detailed [here](https://www.reddit.com/r/ethereum/comments/4vg3gq/rngesus_randao_variant_for_more_secure/d5y74to):
 
-#### Submission phase
-1. Participants asking for the randomness (e.g. everyone who bought a lottery ticket) are given a timeframe to submit their own string / hash. 
-2. This phase can last as long as required, and should be a comfortable timeframe for all participants to submit their randomness to prevent others from colluding against them.
+1. Upon request for a random number, wait for the next block
+2. `SHA^N (block hash)` will be the random result, where N is such that it should be infeasible for miners to precalculate the result of a block hash that they find within the average block time. Upon the creation of the DAO there might have to be a difficulty adjustment phase where people are incentivized to precalculate a block hash within one block.
+3. Interactive verification will be done to verify the submitted result. Participants will keep a security deposit in the DAO to participate. The security deposits will be used to pledge for the correctness of the result, and will be paid to successful challengers.
+4.(Optional) Keep the flood phase idea to drastically cut down attacker's time to react, splitting incentives to the last few participants who submit their randomness before the block time. This will help cut down the cost & time of interactive verification by requiring a much lower difficulty. Will implement if there is demand.
 
-#### Flood phase
-1. The dedicated people who are part of RNGesus, so called RNG miners, along with any other willing participant will flood the submissions with more randomness. RNG miners will run daemons listening to Events to facilitate this phase.
-2. This phase should last much shorter than the submission phase, maybe 1 minute or less, severely constraining the amount of time someone has to calculate the end result.
+## Incentives
+Incentives will depend mainly on the exact implementation of interactive verification. 
 
-#### Verification phase
-1. At the end of the Flood phase, participants will do f(sha(s1),sha(s2), ..., sha(sn) where f is a reducer using a simple XOR operation or SHA again. We then do sha^1e10 on the result. Idea here (might be mistaken) is that repeated hash operations cannot be performed in parallel, so doing it once with large enough hash operations is good enough.
-2. Participants are incentivized to solve and submit a correct result.
-3. Interactive verification can be done to verify the submitted result
-4. Vary difficulty depending on time taken to solve it.
+### Stakeholders Participate
+This is the safest method when the stakes are high to prevent collusion. By letting any interested stakeholder to participate, they can prevent collusion against them. Yet this is the least user friendly method as it requires end users to have a daemon with synced node to run it. All in all, this is definitely an improvement for commercial applications like lotteries, as end users at least have the choice to prevent collusion. If not, they probably never cared for that in the first place and is fine with trusting the lottery owner.
 
-
-#### Verification phase ++ (KIV)
-This is a potential improvement to the current proposed system, using a PoW style method to get a solution that can be verified on-chain. 
-1. At the end of the Flood phase, participants will do f(sha(s1),sha(s2), ..., sha(sn) where f is a reducer using a simple XOR operation or SHA again. This will be the seed hash.
-
-2. The seed hash is used along with a nonce to calculate a solution hash that is below a difficulty level. Done correctly, it might even be feasible for the EVM to calculate the seed hash. Thenafter we can verify on-chain whether the sha(nonce + seed hash) = solution hash.
-
-3. The difficulty level must ensure that cheating the system under the time constraints require economically infeasible levels of computation. E.g. if the potential rewards are $1m, difficulty level must be such that attacker requires a hash rate costing C to find the solution first with probability x%, giving him additional y% chance to win: `Cxy > R = 1e6`
-
-4. The difficulty level can be dependent on the number of participant if there are no dedicated 'miners', so that participants themselves can solve it given a reasonable timeframe, but the attacker cannot calculate the result fast enough to react and manipulate the result during the flood phase
-
-5. If there are dedicated 'miners', it can be dependent of their hash rate, but I'm not sure if there will be enough incentive to consistently mine the solution for random numbers. If so, we can follow what Vitalik suggested and have a period when the DAO is created to reward people who can calculate fast enough the result, and vary the difficulty as needed.
+### Dedicated Verifiers
+This follows the concept of having security guards doing checks, who are in turn consistently paid for their efforts. A requesting party will have to pay for the randomness due to gas & electricity costs for interactive verification. As such it is highly possible that the requesting party pay for the level of security desired, in the form of number of verifiers needed to verify the result. Yet given high enough stakes, it is still feasible for attackers to collude and bribe the verifiers. Essentially this will suffer from the same problem as RanDAO, leading to exorbitant amounts of security deposits for verifiers to ensure non-profitable collusion. The question then is whether it's worth paying for and trusting these security guards.
