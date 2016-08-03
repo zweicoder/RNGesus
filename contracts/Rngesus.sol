@@ -18,11 +18,9 @@ contract Rngesus {
     struct Challenge {
         bytes32 left;
         bytes32 right;
-        uint leftIdx;
-        uint rightIdx;
         address leftPlayer;
         address rightPlayer;
-        uint[7] indices; // hardcode branching factor of 8 for now
+        uint[9] indices; // hardcode branching factor for now
         using CheapArray for bytes32[] lbranches;
         using CheapArray for bytes32[] rbranches;
     }
@@ -84,49 +82,43 @@ contract Rngesus {
         }
 
         // Answers are different, have them fight it out or the default one wins.
-        // Consider running an open website via IPFS to do verification off-chain
         // Time before it expires? Person who doesn't reveal solution in time limit loses by default? Insurers lose as well? Is there a need for multiple insurers?
-        veriSha(requests[blockNum].insurer, msg.sender);
+        // Careful of recursive calls here. Might have to check if challenge already requested
+        veriSha(requests[blockNum].insurer, msg.sender, blockNum);
 
 
     }
 
     // TODO split logic to another contract / library
     function veriSha(address insurer, address challenger, uint blockNum) internal {
+        // Initialize Challenge
         var left = block.blockhash(blockNum);
         var right = requests[blockNum].value;
-        var leftIdx = 0;
-        var rightIdx = CURRENT_DIFFICULTY;
-        challenges[blockNum] = Challenge(left, right, leftIdx, rightIdx, insurer, challenger);
+        challenges[blockNum] = Challenge(left, right, insurer, challenger);
 
         // This event is mainly to alert stakeholders to submit the indices requested
-        Event_Challenged(blockNum, getBranchIndices(leftIdx, rightIdx););
+        Event_Challenged(blockNum, getBranchIndices(0, CURRENT_DIFFICULTY));
     }
 
-    function getBranchIndices(start, end) returns (uint[7]) {
+    function getBranchIndices(start, end) internal returns (uint[9]) {
         var d = start + end;
-        return [d/8, d/4, d*3/8, d/2, d*5/8, d*3/4, d*7/8];
+        return [start, d/8, d/4, d*3/8, d/2, d*5/8, d*3/4, d*7/8, end];
     }
 
+    // Method that players of the interactive verification game will call.
     function doChallenge(uint blockNum, bytes32[] branches) {
-        if (branches.length != 7){
-            // For now just throw if input is invalid. CheapArray needs some sort of constructor
-            throw;
-        }
-
-        if (!updateMoves(blockNum)) {
-            // Wait for other player
-            return;
-        }
+        if (branches.length != 9 ) throw; // For now just throw if input is invalid. CheapArray needs some sort of constructor
+        if (branches[0] != challenge.left || branches[branches] != challenge.right) throw; // Left and right are already agreed upon, deny input mismatch
+        if (!updateMoves(blockNum)) return; // Wait for the other player. TODO check if time expired
 
         // Both have submitted the X number of branches
-        var (leftIdx, rightIdx) = findBranch();
+        var (leftIdx, rightIdx) = findBranch(blockNum);
         updateChallenge(blockNum, leftIdx, rightIdx);
 
     }
 
     // Update storage with a player's move (the branches)
-    function updateMoves(uint blockNum) internal returns(bool) {
+    function updateMoves(uint blockNum, bytes32[] branches) internal returns(bool) {
         Challenge challenge = challenges[blockNum];
         if (msg.sender != challenge.leftPlayer || msg.sender != challenge.rightPlayer) {
             // Only 1v1 for now
@@ -141,47 +133,37 @@ contract Rngesus {
         }
 
         if (challenge.lbranches.n == 0 || challenge.rbranches.n == 0) {
-            // TODO confirm that it's modified via reference
-            // challenges[blockNum] = challenge;
+            // TODO confirm that storage is modified via reference
             return false;
         }
 
         return true;
     }
 
-    // Here we find where things went wrong
-    function findBranch(uint blockNum) internal returns(uint[2]){
+    // Here we find where things went wrong. Returns [leftIdx, rightIdx]
+    function findBranch(uint blockNum) internal returns(uint leftIdx, uint rightIdx){
         Challenge challenge = challenges[blockNum];
         var leftIdx;
         var rightIdx;
-        bool hasDifference;
-        for (uint i = 0; i < challenge.lbranches.length; i++) {
+        var indices = challenge.indices;
+        uint8 error;
+        for (uint i = 1; i < challenge.lbranches.length-1; i++) {
             if (challenge.lbranches[i] != challenge.rbranches[i]) {
                 // We want to find the first place where the calculations diverged, then take the latest place where calculations are still agreed upon
-                if (i == 0) {
-                    leftIdx = challenge.leftIdx;
-                    rightIdx  = indices[i];
-                    hasDifference = true;
-                    break;
-                }
-                else {
-                    leftIdx = indices[i-1];
-                    rightIdx = indices[i];
-                    hasDifference = true;
-                    break;
-                }
-
+                leftIdx = indices[i-1];
+                rightIdx = indices[i];
+                break;
             }
         }
 
         // Variables not set cause nothing in the branches were different. Zoom to rightmost branch.
         // This will work as long as the threshold is bigger than branching factor
         if (leftIdx == 0 && rightIdx == 0) {
-            leftIdx = indices[indices.length - 1];
-            rightIdx = challenge.rightIdx;
+            leftIdx = indices[indices.length - 2];
+            rightIdx = indices[indices.length - 1];
         }
 
-        return [leftIdx, rightIdx];
+        return (leftIdx, rightIdx);
     }
 
     // Find out who's correct if below threshold, else update state variables and request new indices
@@ -193,16 +175,15 @@ contract Rngesus {
             shaRush(challenge.lbranches[leftIdx], challenge.rbranches[rightIdx]);
         }
         else {
-            // Update storage
-            challenge.leftIdx = leftIdx;
+            // Update storage with new consensus
             challenge.left = challenge.lbranches[leftIdx];
             challenge.lbranches.clear();
-            challenge.rightIdx = rightIdx;
             challenge.right = challenge.rbranches[rightIdx];
             challenge.rbranches.clear();
+            challenge.indices = getBranchIndices(leftIdx, rightIdx); // TODO use CheapArray
 
             // Request for new indices
-            Event_Challenged(blockNum, getBranchIndices(leftIdx, rightIdx));
+            Event_Challenged(blockNum, challenge.indices);
         }
     }
 }
