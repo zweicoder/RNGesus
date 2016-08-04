@@ -37,21 +37,12 @@ contract Rngesus {
     function Rngesus() {
         developer = msg.sender;
         MIN_DEPOSIT = 1 ether;
-        CURRENT_DIFFICULTY = 4 000 000 0 // takes one minute on my computer. adjust as needed
+        CURRENT_DIFFICULTY = 4 000 000 0 // takes 60s on my computer (4x block time). adjust as needed 
         THRESHOLD = 1 000 00 // 1 cents
     }
 
     function () {
         throw;
-    }
-
-    function shatest(uint n) constant {
-        // 65  gas per sha, gas price is around 0.000 000 0225, so around 1 million shas will cost 0.1 eth
-        // 1 million shas ~= 1.5s on my computer
-        var x = msg.sender;
-        for (uint i=0; i<n; i++){
-            x = sha3(x);
-        }
     }
 
     function requestRng() {
@@ -83,10 +74,7 @@ contract Rngesus {
 
         // Answers are different, have them fight it out or the default one wins.
         // Time before it expires? Person who doesn't reveal solution in time limit loses by default? Insurers lose as well? Is there a need for multiple insurers?
-        // Careful of recursive calls here. Might have to check if challenge already requested
         veriSha(requests[blockNum].insurer, msg.sender, blockNum);
-
-
     }
 
     // TODO split logic to another contract / library
@@ -97,7 +85,7 @@ contract Rngesus {
         challenges[blockNum] = Challenge(left, right, insurer, challenger);
 
         // This event is mainly to alert stakeholders to submit the indices requested
-        Event_Challenged(blockNum, getBranchIndices(0, CURRENT_DIFFICULTY));
+        Event_Challenged(blockNum, getBranchIndices(0, CURRENT_DIFFICULTY - 1));
     }
 
     function getBranchIndices(start, end) internal returns (uint[9]) {
@@ -146,7 +134,6 @@ contract Rngesus {
         var leftIdx;
         var rightIdx;
         var indices = challenge.indices;
-        uint8 error;
         for (uint i = 1; i < challenge.lbranches.length-1; i++) {
             if (challenge.lbranches[i] != challenge.rbranches[i]) {
                 // We want to find the first place where the calculations diverged, then take the latest place where calculations are still agreed upon
@@ -172,7 +159,7 @@ contract Rngesus {
 
         if (rightIdx - leftIdx <= THRESHOLD) {
             // rush from challenge.left to challenge.right
-            shaRush(challenge.lbranches[leftIdx], challenge.rbranches[rightIdx]);
+            repeatedlySha(challenge.lbranches[leftIdx], challenge.rbranches[rightIdx], rightIdx - leftIdx);
         }
         else {
             // Update storage with new consensus
@@ -185,6 +172,19 @@ contract Rngesus {
             // Request for new indices
             Event_Challenged(blockNum, challenge.indices);
         }
+    }
+
+    // we can abstract this to a function, and to do optional function args we take in contract address where contract has one method to call
+    // Repeatedly sha start for n times and check if it is equal to end
+    function repeatedlySha(bytes32 start, bytes32 end, uint n) constant internal return(bool){
+        // 65  gas per sha, gas price is around 0.000 000 0225, so around 1 million shas will cost 0.1 eth
+        // 1 million shas ~= 1.5s on my computer
+        var temp = start;
+        for (uint i = 0; i < n; i++){
+            temp = sha3(temp);
+        }
+
+        return temp == end;
     }
 }
 
