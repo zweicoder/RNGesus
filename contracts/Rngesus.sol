@@ -74,6 +74,7 @@ contract Rngesus {
 
         // Answers are different, have them fight it out or the default one wins.
         // Time before it expires? Person who doesn't reveal solution in time limit loses by default? Insurers lose as well? Is there a need for multiple insurers?
+        // Vulnerable to DDOS via continual verification by two attacker addresses, where attacker constantly challenges himself to prevent real result from being calculated
         veriSha(requests[blockNum].insurer, msg.sender, blockNum);
     }
 
@@ -108,7 +109,7 @@ contract Rngesus {
     // Update storage with a player's move (the branches)
     function updateMoves(uint blockNum, bytes32[] branches) internal returns(bool) {
         Challenge challenge = challenges[blockNum];
-        if (msg.sender != challenge.leftPlayer || msg.sender != challenge.rightPlayer) {
+        if (msg.sender != challenge.leftPlayer && msg.sender != challenge.rightPlayer) {
             // Only 1v1 for now
             throw;
         }
