@@ -14,6 +14,7 @@ contract InteractiveVerifier {
         address challenger; // Challenger
         uint threshold;
     }
+
     struct Challenge {
         bytes32 left;
         bytes32 right;
@@ -37,30 +38,31 @@ contract InteractiveVerifier {
     }
     
     // Called by others to initialize challenge
-    function initChallenge(bytes32 uuid, bytes32 start, bytes32 end, bytes32 proposed, address insurer, address challenger, uint numOperations, uint threshold) {
+    function initChallenge(bytes32 uuid, bytes32 start, bytes32 end, bytes32 proposed, address insurer, address challenger, uint numOperations, uint threshold) external {
         // Not allowing ongoing sessions to be overwritten. Sessions are currenlty implemented to be 1v1, contracts will have to manage cases for multiple challengers
         if (sessions[uuid].initialized) throw;
 
         // Initialize Challenge with predefined consensus
         challenges[uuid] = Challenge(start, end, proposed);
         sessions[uuid] = Session(true, insurer, challenger, threshold);
+        // Emit event to request for the result at each specified index
         Event_Challenge_Step(uuid, getBranchIndices(0, numOperations - 1));
     }
 
-    // Branching factor hardcoded
-    function getBranchIndices(start, end) internal returns (uint[9]) {
-        var d = start + end;
-        return [start, d/8, d/4, d*3/8, d/2, d*5/8, d*3/4, d*7/8, end];
-    }
-
     // Method that players of the interactive verification game will call during an ongoing session
-    function doChallenge(bytes32 uuid, bytes32[] branches) {
+    function doChallenge(bytes32 uuid, bytes32[] branches) external {
         if (branches.length != 9 ) throw; // For now just throw if input is invalid. CheapArray needs some sort of constructor
         if (!updateMoves(uuid)) return; // Wait for the other player. TODO check if time expired
 
         // Both have submitted the X number of branches
         var difference = findDifference(uuid);
         updateChallenge(uuid, difference);
+    }
+
+    // Branching factor hardcoded
+    function getBranchIndices(left, right) internal returns (uint[9]) {
+        var d = left + right;
+        return [left, d/8, d/4, d*3/8, d/2, d*5/8, d*3/4, d*7/8, right];
     }
 
     // Update storage with a player's move (the branches). Returns true if both players have submitted their move.
@@ -106,11 +108,11 @@ contract InteractiveVerifier {
         var (newStart, newEnd, newProposed) = (lbranches[diffIdx-1], lbranches[diffIdx], rbranches[diffIdx]);
 
         if (numOperations <= session.threshold) {
-            var computed = repeatedlySha(newStart, newEnd, proposed, numOperations);
+            var computed = repeatedlySha(newStart, newEnd, newProposed, numOperations);
             // The reason we take both ends is to prevent a dishonest person to win another dishonest person. ie challenger used a bad hash but the insurer was using a bad hash as well but now the challenger wins.
             var result;
             var liar;
-            if (computed != newEnd && computed != proposed){ 
+            if (computed != newEnd && computed != newProposed){ 
                 result = LiarIs.Both;
                 liar = 0x0;
             }
@@ -118,11 +120,12 @@ contract InteractiveVerifier {
                 result = LiarIs.Insurer;
                 liar = session.insurer;
             }
-            else if (computed != proposed){
+            else if (computed != newProposed){
                 result = LiarIs.Challenger;
                 liar = session.challenger;
             } 
-            Event_Challenge_Ended(uuid, result, liar)
+            Event_Challenge_Ended(uuid, result, liar);
+            session.initialized = false; // Cheap clean up just in case. Maybe spend some gas to prevent bloat / pollution?
             return result;
         }
 
