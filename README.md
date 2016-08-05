@@ -27,10 +27,19 @@ RNGesus follows the implementation detailed [here](https://www.reddit.com/r/ethe
 4.(Optional) Keep the flood phase idea to drastically cut down attacker's time to react, splitting incentives to the last few participants who submit their randomness before the block time. This will help cut down the cost & time of interactive verification by requiring a much lower difficulty. Will implement if there is demand.
 
 ## Incentives
-Incentives will depend mainly on the exact implementation of interactive verification. 
+There are two scenarios the interactive verification can work:
 
 ### Stakeholders Participate
 This is the safest method when the stakes are high to prevent collusion. By letting any interested stakeholder to participate, they can prevent collusion against them. Yet this is the least user friendly method as it requires end users to have a daemon with synced node to run it. All in all, this is definitely an improvement for commercial applications like lotteries, as end users at least have the choice to prevent collusion. If not, they probably never cared for that in the first place and is fine with trusting the lottery owner.
 
 ### Dedicated Verifiers
 This follows the concept of having security guards doing checks, who are in turn consistently paid for their efforts. A requesting party will have to pay for the randomness due to gas & electricity costs for interactive verification. As such it is highly possible that the requesting party pay for the level of security desired, in the form of number of verifiers needed to verify the result. Yet given high enough stakes, it is still feasible for attackers to collude and bribe the verifiers. Essentially this will suffer from the same problem as RanDAO, leading to exorbitant amounts of security deposits for verifiers to ensure non-profitable collusion. The question then is whether it's worth paying for and trusting these security guards.
+
+As such RNGesus will allow optional bounty to be submitted to reward dedicated verifiers. Alternatively applications that do not feel the need for them can have the interested stakeholders participate (and pay for the gas) themselves. A fixed fee is always charged for the last phase of interactive verification where the contract performs many SHA operations to rush towards a solution.
+
+
+## Applications
+The main point of having RNGesus is public, provably fair randomness. This can be used for various applications that want to prove something is truly random / not tampered with:
+- Peer review process can randomly select peers
+- Games can randomly select players to join the tables
+- Gambling contracts
